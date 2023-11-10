@@ -5,7 +5,7 @@
 #' for the raw responses, variable descriptions, and codes.
 #' 
 #' @param x name of the haven-generated object where the data will go
-#' @param spss_path string with filename/path of the source SPSS .sav file
+#' @param spss_path string with filename/path of the source SPSS .sav file OR list of strings with filename/path of the source SPSS.sav file, in which case files must be the same format and will be concatenated
 #' @param excel_path string with filename/path of the destination Excel .xlsx file
 #' @param overwrite_excel_path logical indicating whether to overwrite (erase) any existing at excel_path
 #' @param return_data logical indicating whether to return an R object containing the data or not
@@ -17,11 +17,19 @@ spss_to_excel <- function(x, spss_path,
                           excel_path,
                           overwrite_excel_path = FALSE,
                           return_data = FALSE) {
-
+  
   library(haven, openxlsx)
   
   # load spss data to temp table:
-  raw_data <- haven::read_spss(spss_path)
+  raw_data <- haven::read_spss(spss_path[1])
+  
+  # multiple files:
+  if (length(spss_path) > 1) {
+    raw_data <- haven::read_spss(spss_path[1])
+    for (i in 2:length(spss_path)) {
+      raw_data <- rbind(raw_data, haven::read_spss(spss_path[i]))
+    }
+  }
   
   # initialize in-memory workbook:
   wb <- openxlsx::createWorkbook()
@@ -48,8 +56,8 @@ spss_to_excel <- function(x, spss_path,
     openxlsx::saveWorkbook(wb, excel_path, overwrite = overwrite_excel_path)
     return(raw_data)
   }
-
-    # write the workbook and exit, delivering response from the openxlsx::saveWorkbook operation
+  
+  # write the workbook and exit, delivering response from the openxlsx::saveWorkbook operation
   if (return_data == FALSE) {
     return(openxlsx::saveWorkbook(wb, excel_path, overwrite = overwrite_excel_path))  
   }
@@ -74,7 +82,7 @@ spss_to_excel <- function(x, spss_path,
 #' @param x haven-generated SPSS dataset we're working on
 #' @param existing_vars list of input variables. must be same length/order as recode_vars
 #' @param recode_vars list of target variable names. must be same length/order as existing_vars
-#' @param recenter logical TRUE to mean-center the value rather than just recode/rename the variable
+#' @param recenter logical TRUE to mean-center the value rather than just recode/rename the variable, TRUE by default
 #' @param na_value integer value for recoding data to NAs. 0 by default.
 #' 
 #' @returns a haven-generated SPSS dataset with new fields as indicated in vars_names, inheriting the original attributes of the old variables.
@@ -85,7 +93,7 @@ recenter_recode_vars <- function(x, existing_vars,
                                  recode_vars,
                                  recenter = TRUE,
                                  na_value = 0) {
-
+  
   # make data_frame from vars (really just to throw an error if they're not the same length):
   var_frame <- data.frame(existing_vars <- existing_vars,
                           recode_vars <- recode_vars)
@@ -108,12 +116,12 @@ recenter_recode_vars <- function(x, existing_vars,
     
     # Copy the values of the existing variable to the new variable
     target_data[recode_var_name] <- target_data[existing_var_name]
-
+    
     if (recenter == TRUE) {
       # Copy the values of the existing variable to the new variable
       target_data[recode_var_name] <- target_data[existing_var_name] - target_data$avg_value
     }
-
+    
     # Copy the attributse from the existing variable to the new variable
     attributes(target_data[[recode_var_name]]) <- attributes(target_data[[existing_var_name]])
   }
@@ -172,7 +180,7 @@ split_recode_nonnegative_vars <- function(x, existing_vars,
                                           flip = FALSE,
                                           low_appendage = "_no",
                                           high_appendage = "_yes") {
- 
+  
   # make data_frame from vars (really just to throw an error if they're not the same length):
   var_frame <- data.frame(existing_vars <- existing_vars,
                           recode_vars <- recode_vars)
