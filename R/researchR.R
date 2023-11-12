@@ -22,54 +22,44 @@ spss_to_excel <- function(x, spss_path,
   
   library(haven, openxlsx)
   
-  # load spss data to temp table:
-  raw_data <- haven::read_spss(spss_path[1])
-  
-  # multiple files:
-  if (length(spss_path) > 1) {
-    raw_data <- haven::read_spss(spss_path[1])
+  # Function to read and process SPSS data
+  read_and_process_spss <- function(file_path) {
+    data <- haven::read_spss(file_path)
     if (source_field_name != FALSE) {
-      raw_data[[source_field_name]] <- spss_path[1]
+      data[[source_field_name]] <- file_path
     }
-    for (i in 2:length(spss_path)) {
-      temp_raw_data <- haven::read_spss(spss_path[i])
-      if (source_field_name != FALSE) {
-        temp_raw_data[[source_field_name]] <- spss_path[i]
-      }
-      raw_data <- rbind(raw_data, temp_raw_data)
-    }
+    return(data)
   }
+  
+  # Load spss data from all files
+  raw_data <- do.call(rbind, lapply(spss_path, read_and_process_spss))
   
   # initialize in-memory workbook:
   wb <- openxlsx::createWorkbook()
   
   # initialize sheets:
-  openxlsx::addWorksheet(wb, "raw")
-  openxlsx::addWorksheet(wb, "rawVars")
-  openxlsx::addWorksheet(wb, "rawVals")
+  sheet_names <- c("raw", "rawVars", "rawVals")
+  lapply(sheet_names, function(sheet) openxlsx::addWorksheet(wb, sheet))
   
   # write full dataset to "raw" sheet in a table:
   openxlsx::writeDataTable(wb, "raw", x = raw_data, rowNames = TRUE, xy = c("B", 5))
   
   # create data frame from SPSS variable descriptions and write to "rawVars" table/sheet:
-  raw_vars <- lapply(raw_data, attr, "label")
-  raw_vars <- unlist(raw_vars)
+  raw_vars <- unlist(lapply(raw_data, attr, "label"))
   openxlsx::writeDataTable(wb, "rawVars", x = data.frame(raw_vars), rowNames = TRUE, xy = c("B", 5))
   
   # create data frame from SPSS value descriptions and write to "rawVals" table/sheet:
-  raw_vals <- lapply(raw_data, attr, "labels")
-  raw_vals <- unlist(raw_vals)
+  raw_vals <- unlist(lapply(raw_data, attr, "labels"))
   openxlsx::writeDataTable(wb, "rawVals", x = data.frame(raw_vals), rowNames = TRUE, xy = c("B", 5))
   
-  if (return_data == TRUE) {
+  # Save workbook and return data if specified:
+  if (return_data) {
     openxlsx::saveWorkbook(wb, excel_path, overwrite = overwrite_excel_path)
     return(raw_data)
   }
   
-  # write the workbook and exit, delivering response from the openxlsx::saveWorkbook operation
-  if (return_data == FALSE) {
-    return(openxlsx::saveWorkbook(wb, excel_path, overwrite = overwrite_excel_path))  
-  }
+  # Save the workbook and exit, delivering response from the openxlsx::saveWorkbook operation
+  return(openxlsx::saveWorkbook(wb, excel_path, overwrite = overwrite_excel_path))  
 }
 
 #' recenter_recode_vars
