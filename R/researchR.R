@@ -9,6 +9,7 @@
 #' @param excel_path string with filename/path of the destination Excel .xlsx file
 #' @param overwrite_excel_path logical indicating whether to overwrite (erase) any existing at excel_path
 #' @param return_data logical indicating whether to return an R object containing the data or not
+#' @param source_field_name string used to name a field that'll be used if multiple files passed with spss_path. FALSE (default) to not create a source variable.
 #' 
 #' @returns nothing if successful; errors from child functions if exist; dataframe if "return_dataframe" is TRUE
 #' 
@@ -16,7 +17,8 @@
 spss_to_excel <- function(x, spss_path, 
                           excel_path,
                           overwrite_excel_path = FALSE,
-                          return_data = FALSE) {
+                          return_data = FALSE,
+                          source_field_name = FALSE) {
   
   library(haven, openxlsx)
   
@@ -26,8 +28,15 @@ spss_to_excel <- function(x, spss_path,
   # multiple files:
   if (length(spss_path) > 1) {
     raw_data <- haven::read_spss(spss_path[1])
+    if (source_field_name != FALSE) {
+      raw_data[[source_field_name]] <- spss_path[1]
+    }
     for (i in 2:length(spss_path)) {
-      raw_data <- rbind(raw_data, haven::read_spss(spss_path[i]))
+      temp_raw_data <- haven::read_spss(spss_path[i])
+      if (source_field_name != FALSE) {
+        temp_raw_data[[source_field_name]] <- spss_path[i]
+      }
+      raw_data <- rbind(raw_data, temp_raw_data)
     }
   }
   
